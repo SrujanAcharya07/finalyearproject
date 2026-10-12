@@ -26,7 +26,8 @@ def test_parser_and_indicators():
 
 def test_defang_and_score():
     assert defang_url("https://example.com/login") == "hxxps://example[.]com/login"
-    assert score_risk([{"title": "x", "severity": 3}], None)["level"] == "Medium"
+    assert score_risk([{"title": "x", "severity": 3}], None)["level"] == "Low"
+    assert score_risk([{"title": "x", "severity": 2}, {"title": "y", "severity": 2}], None)["level"] == "Medium"
 
 
 def test_structured_assessment_validation():
@@ -43,7 +44,8 @@ def test_llm_unavailable_is_safe(monkeypatch):
     assert result["advisory"] is True
 
 
-def test_route_persistence(tmp_path):
+def test_route_persistence(tmp_path, monkeypatch):
+    monkeypatch.setattr(Config, "OLLAMA_MODEL", "")
     app = create_app({"TESTING": True, "DATABASE_PATH": str(tmp_path / "t.db"), "UPLOAD_FOLDER": str(tmp_path / "u")})
     client = app.test_client()
     response = client.post("/api/investigations", json={"title": "test", "content": EMAIL.decode()})
