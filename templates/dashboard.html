@@ -1,1 +1,32 @@
-{% extends 'base.html' %}{% block content %}<header><div><span class=eyebrow>DEFENSIVE ANALYSIS / LOCAL-FIRST</span><h1>Incident response cockpit</h1><p class=muted>Evidence-led triage for suspicious email and social engineering.</p></div><a class=button href="{{url_for('submit_page')}}">+ New investigation</a></header><section class=metrics><div><small>TOTAL ANALYZED</small><strong>{{stats.total}}</strong></div><div><small>HIGH / CRITICAL</small><strong>{{stats.high}}</strong></div><div><small>MEDIUM</small><strong>{{stats.medium}}</strong></div><div><small>LOW</small><strong>{{stats.low}}</strong></div></section><section class=panel><h2>Integration health</h2><div class=chips>{% for name,ok in integrations.items() %}<span class="chip {{'ok' if ok else 'off'}}">{{name}} · {{'configured' if ok else 'unavailable'}}</span>{% endfor %}</div></section><section class=panel><h2>Recent investigations</h2>{% if recent %}<table><tr><th>ID</th><th>Title</th><th>Sender</th><th>Risk</th><th>Created</th></tr>{% for x in recent %}<tr><td><a href="{{url_for('detail',iid=x.id)}}">#{{x.id}}</a></td><td>{{x.title}}</td><td>{{x.sender}}</td><td><span class="risk {{x.risk_level|lower}}">{{x.risk_level}} · {{x.risk_score}}</span></td><td>{{x.created_at[:19]}}</td></tr>{% endfor %}</table>{% else %}<p class=muted>No investigations yet.</p>{% endif %}</section>{% endblock %}
+{% extends 'base.html' %}
+{% block content %}
+<header>
+  <div>
+    <span class="eyebrow">DEFENSIVE ANALYSIS / LOCAL-FIRST</span>
+    <h1>Incident response cockpit</h1>
+    <p class="muted">Evidence-led triage for suspicious email and social engineering.</p>
+  </div>
+  <a class="button header-action" href="{{ url_for('submit_page') }}">+ New investigation</a>
+</header>
+<section class="metrics">
+  <div><small>TOTAL ANALYZED</small><strong>{{ stats.total }}</strong></div>
+  <div><small>HIGH / CRITICAL</small><strong>{{ stats.high }}</strong></div>
+  <div><small>MEDIUM</small><strong>{{ stats.medium }}</strong></div>
+  <div><small>LOW</small><strong>{{ stats.low }}</strong></div>
+</section>
+<section class="panel">
+  <h2>Recent investigations</h2>
+  {% if recent %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Title</th><th>Sender</th><th>Risk</th><th>Created</th></tr></thead>
+        <tbody>
+        {% for x in recent %}
+          <tr><td><a href="{{ url_for('detail', iid=x.id) }}">#{{ x.id }}</a></td><td>{{ x.title }}</td><td>{{ x.sender }}</td><td><span class="risk {{ x.risk_level|lower }}">{{ x.risk_level }} · {{ x.risk_score }}</span></td><td>{{ x.created_at[:19] }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}<p class="muted">No investigations yet.</p>{% endif %}
+</section>
+{% endblock %}

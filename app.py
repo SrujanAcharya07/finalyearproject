@@ -66,7 +66,7 @@ def create_app(test_config=None):
         with db() as c:
             stats = c.execute("SELECT COUNT(*) total, COALESCE(SUM(risk_level IN ('High','Critical')),0) high, COALESCE(SUM(risk_level='Medium'),0) medium, COALESCE(SUM(risk_level='Low'),0) low FROM investigations").fetchone()
             recent = c.execute("SELECT * FROM investigations ORDER BY created_at DESC LIMIT 8").fetchall()
-        return render_template("dashboard.html", stats=stats, recent=recent, integrations=integration_status())
+        return render_template("dashboard.html", stats=stats, recent=recent)
 
     @app.get("/submit")
     def submit_page():
@@ -79,6 +79,10 @@ def create_app(test_config=None):
     @app.get("/health")
     def health():
         return jsonify({"status": "ok", "mode": "local-only capable", "timestamp": now()})
+
+    @app.get("/manus-routes.json")
+    def manus_routes():
+        return jsonify({"routes": [{"path": "/", "title": "Dashboard"}, {"path": "/submit", "title": "Submit suspicious email"}, {"path": "/settings", "title": "Integration status"}, {"path": "/investigations/:id", "title": "Investigation details"}]})
 
     @app.get("/api/integrations/status")
     def integrations():
