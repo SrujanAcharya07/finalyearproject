@@ -28,6 +28,23 @@ def init_db():
     with db() as c:
         c.executescript((BASE / "database/schema.sql").read_text())
 
+def refresh_saved_risks():
+    """Re-score persisted investigations after rule/scoring changes without calling the model."""
+    with db() as c:
+        rows = c.execute("SELECT id, parsed_json, ai_json, file_scan_json FROM investigations").fetchall()
+        for row in rows:
+            try:
+                parsed = json.loads(row["parsed_json"] or "{}")
+                indicators = extract_indicators(parsed)
+                findings = run_rules(parsed, indicators)
+                ai = json.loads(row["ai_json"] or "null")
+                file_scan = json.loads(row["file_scan_json"] or "null")
+                risk = score_risk(findings, ai, file_scan)
+                c.execute("UPDATE investigations SET indicators_json=?, findings_json=?, risk_level=?, risk_score=?, updated_at=? WHERE id=?", (json.dumps(indicators), json.dumps(findings), risk["level"], risk["score"], now(), row["id"]))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+        c.commit()
+
 def integration_status():
     return {"ollama": bool(Config.OLLAMA_BASE_URL and Config.OLLAMA_MODEL), "yara": scan_file(None)["status"] != "unavailable", "cuckoo": bool(Config.CUCKOO_URL), "cortex": bool(Config.CORTEX_URL and Config.CORTEX_API_KEY), "thehive": bool(Config.THEHIVE_URL and Config.THEHIVE_API_KEY)}
 
@@ -60,6 +77,7 @@ def create_app(test_config=None):
     Config.UPLOAD_FOLDER = app.config["UPLOAD_FOLDER"]
     Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
     init_db()
+    refresh_saved_risks()
 
     @app.get("/")
     def dashboard():

@@ -50,6 +50,9 @@ For the public managed deployment, `127.0.0.1` refers to the published container
 ## Tests
 `pytest -q` runs without Ollama, YARA, Cuckoo, Cortex, or TheHive. Tests use safe fallback behavior and schema validation rather than a live model.
 
+## Risk scoring guardrails
+Risk scores are evidence-based and each independent rule finding contributes separately. A single weak or moderate indicator remains Low; Medium, High, and Critical levels require corroborating evidence. The test suite includes regression coverage to prevent multiple suspicious phrases from collapsing into a fixed 15-point score. Existing saved investigations are re-scored with the current rules when the application starts.
+
 ## Optional setup
 Install `yara-python` and place trusted rules in `rules.yar`. Configure Cuckoo/Cortex/TheHive URLs and API keys only in `.env`; the app never exposes them in the UI.
 

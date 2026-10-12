@@ -12,6 +12,7 @@ from services.email_parser import parse_email_input
 from services.indicator_extractor import extract_indicators
 from services.llm_analyzer import OllamaAssessment, _validate_payload, analyze_with_llm
 from services.risk_scorer import score_risk
+from services.rule_engine import run_rules
 from services.url_defanger import defang_url
 
 EMAIL = b"From: CFO <cfo@example.com>\nTo: user@example.net\nSubject: Urgent verification\n\nClick https://evil.example/login immediately to verify your password."
@@ -28,6 +29,17 @@ def test_defang_and_score():
     assert defang_url("https://example.com/login") == "hxxps://example[.]com/login"
     assert score_risk([{"title": "x", "severity": 3}], None)["level"] == "Low"
     assert score_risk([{"title": "x", "severity": 2}, {"title": "y", "severity": 2}], None)["level"] == "Medium"
+
+
+def test_phrase_categories_are_scored_independently():
+    parsed = parse_email_input(b"From: security@example.com\nTo: user@example.net\nSubject: Urgent payment\n\nAct immediately. Verify your account password and send a wire transfer.")
+    indicators = extract_indicators(parsed)
+    findings = run_rules(parsed, indicators)
+    codes = {item["code"] for item in findings}
+    assert {"urgency_language", "credential_request", "payment_request"}.issubset(codes)
+    result = score_risk(findings)
+    assert result["score"] > 15
+    assert result["level"] in {"Medium", "High", "Critical"}
 
 
 def test_structured_assessment_validation():
