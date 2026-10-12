@@ -1,17 +1,58 @@
-import io,json,sys
+import sys
 from pathlib import Path
+
+import pytest
+from pydantic import ValidationError
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from app import create_app
+from config import Config
 from services.email_parser import parse_email_input
 from services.indicator_extractor import extract_indicators
-from services.url_defanger import defang_url
+from services.llm_analyzer import OllamaAssessment, _validate_payload, analyze_with_llm
 from services.risk_scorer import score_risk
-EMAIL=b"From: CFO <cfo@example.com>\nTo: user@example.net\nSubject: Urgent verification\n\nClick https://evil.example/login immediately to verify your password."
+from services.url_defanger import defang_url
+
+EMAIL = b"From: CFO <cfo@example.com>\nTo: user@example.net\nSubject: Urgent verification\n\nClick https://evil.example/login immediately to verify your password."
+
+
 def test_parser_and_indicators():
- p=parse_email_input(EMAIL); i=extract_indicators(p); assert p["subject"]=="Urgent verification"; assert "evil.example" in i["domains"]
+    parsed = parse_email_input(EMAIL)
+    indicators = extract_indicators(parsed)
+    assert parsed["subject"] == "Urgent verification"
+    assert "evil.example" in indicators["domains"]
+
+
 def test_defang_and_score():
- assert defang_url("https://example.com/login")=="hxxps://example[.]com/login"; assert score_risk([{"title":"x","severity":3}],None)["level"]=="Medium"
+    assert defang_url("https://example.com/login") == "hxxps://example[.]com/login"
+    assert score_risk([{"title": "x", "severity": 3}], None)["level"] == "Medium"
+
+
+def test_structured_assessment_validation():
+    result = _validate_payload({"summary": "Suspicious request", "risk_assessment": "Review", "techniques": ["urgency"]})
+    assert isinstance(result, OllamaAssessment)
+    with pytest.raises(ValidationError):
+        _validate_payload({"summary": "Missing risk field"})
+
+
+def test_llm_unavailable_is_safe(monkeypatch):
+    monkeypatch.setattr(Config, "OLLAMA_MODEL", "")
+    result = analyze_with_llm({}, {}, [])
+    assert result["status"] == "unavailable"
+    assert result["advisory"] is True
+
+
 def test_route_persistence(tmp_path):
- app=create_app({"TESTING":True,"DATABASE_PATH":str(tmp_path/"t.db"),"UPLOAD_FOLDER":str(tmp_path/"u")}); c=app.test_client(); r=c.post("/api/investigations",json={"title":"test","content":EMAIL.decode()}); assert r.status_code==201; iid=r.get_json()["id"]; assert c.get(f"/api/investigations/{iid}").status_code==200; assert c.get(f"/api/investigations/{iid}/report").status_code==200
+    app = create_app({"TESTING": True, "DATABASE_PATH": str(tmp_path / "t.db"), "UPLOAD_FOLDER": str(tmp_path / "u")})
+    client = app.test_client()
+    response = client.post("/api/investigations", json={"title": "test", "content": EMAIL.decode()})
+    assert response.status_code == 201
+    iid = response.get_json()["id"]
+    assert client.get(f"/api/investigations/{iid}").status_code == 200
+    assert client.get(f"/api/investigations/{iid}/report").status_code == 200
+
+
 def test_invalid_input(tmp_path):
- app=create_app({"TESTING":True,"DATABASE_PATH":str(tmp_path/"t.db"),"UPLOAD_FOLDER":str(tmp_path/"u")}); assert app.test_client().post("/api/investigations",json={}).status_code==400
+    app = create_app({"TESTING": True, "DATABASE_PATH": str(tmp_path / "t.db"), "UPLOAD_FOLDER": str(tmp_path / "u")})
+    assert app.test_client().post("/api/investigations", json={}).status_code == 400
