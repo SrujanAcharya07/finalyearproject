@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS investigations (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, subject TEXT, sender TEXT, recipients TEXT, risk_level TEXT NOT NULL, risk_score INTEGER NOT NULL, raw_email TEXT NOT NULL, parsed_json TEXT NOT NULL, indicators_json TEXT NOT NULL, findings_json TEXT NOT NULL, ai_json TEXT, file_scan_json TEXT, status TEXT NOT NULL, analyst_decision TEXT, analyst_notes TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS decisions (id INTEGER PRIMARY KEY AUTOINCREMENT, investigation_id INTEGER NOT NULL REFERENCES investigations(id) ON DELETE CASCADE, decision TEXT NOT NULL, notes TEXT, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS audit_events (id INTEGER PRIMARY KEY AUTOINCREMENT, investigation_id INTEGER REFERENCES investigations(id) ON DELETE CASCADE, event_type TEXT NOT NULL, detail_json TEXT NOT NULL, created_at TEXT NOT NULL);
