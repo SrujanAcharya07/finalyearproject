@@ -1,0 +1,13 @@
+.git
+.gitignore
+.env
+.venv
+__pycache__/
+*.py[cod]
+.pytest_cache/
+database/*.db
+uploads/*
+test-results.xml
+Jenkinsfile
+docker-compose.yml
+README.md
