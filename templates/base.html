@@ -20,7 +20,7 @@
         <span aria-hidden="true">⋮</span>
       </button>
       <div class="mobile-menu" id="mobile-menu" hidden>
-        <span class="mobile-user">{{ current_user.name or current_user.email or 'Authenticated analyst' }}</span>
+        <span class="mobile-user">{{ current_user.username or 'Authenticated user' }}</span>
         <a href="{{ url_for('dashboard') }}">Dashboard</a>
         <a href="{{ url_for('submit_page') }}">New investigation</a>
         <a href="{{ url_for('settings') }}">Settings</a>

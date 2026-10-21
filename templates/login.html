@@ -2,15 +2,19 @@
 {% block content %}
 <section class="login-shell">
   <div class="login-card">
-    <span class="eyebrow">AUTHORIZED SOC OPERATIONS</span>
-    <h1>Sign in to PhishOps</h1>
-    <p class="muted">Use your Manus account to access the incident response cockpit and investigation records.</p>
+    <span class="eyebrow">SECURE OPERATIONS</span>
+    <h1>Sign in</h1>
+    <p class="muted">Enter your credentials to access the incident response dashboard.</p>
     {% if not auth_configured %}
-      <div class="flash error">Authentication is not configured in this runtime. The deployment must provide the Manus OAuth settings.</div>
+      <div class="flash error">Login is not configured in this deployment.</div>
     {% else %}
-      <a class="button login-button" href="{{ url_for('auth_login') }}">Continue with Manus</a>
+      <form method="post" action="{{ url_for('login_page') }}" autocomplete="on">
+        <label for="username">Username<input id="username" name="username" type="text" autocomplete="username" required autofocus></label>
+        <label for="password">Password<input id="password" name="password" type="password" autocomplete="current-password" required></label>
+        <button class="button login-button" type="submit">Sign in</button>
+      </form>
     {% endif %}
-    <p class="login-note">Access is limited to authorized defensive analysis.</p>
+    <p class="login-note">Authorized defensive analysis only.</p>
   </div>
 </section>
 {% endblock %}

@@ -19,10 +19,9 @@ class Config:
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "")
     OLLAMA_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "30"))
     OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "800"))
-    MANUS_PROJECT_ID = os.getenv("MANUS_PROJECT_ID", "")
-    MANUS_OAUTH_PORTAL_URL = os.getenv("MANUS_OAUTH_PORTAL_URL", "")
-    MANUS_OAUTH_API_URL = os.getenv("MANUS_OAUTH_API_URL", "")
-    MANUS_JWT_SECRET = os.getenv("MANUS_JWT_SECRET", "")
+    ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "")
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+    ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "")
     SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "true").lower() not in {"0", "false", "no"}
     CUCKOO_URL = os.getenv("CUCKOO_URL", "")
     CUCKOO_API_KEY = os.getenv("CUCKOO_API_KEY", "")

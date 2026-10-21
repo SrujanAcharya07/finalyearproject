@@ -1,10 +1,7 @@
 from datetime import datetime, timezone
-import json, secrets, sqlite3
+import json, sqlite3
 from pathlib import Path
-import base64
-import hmac
-from urllib.parse import urlencode
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, g, make_response
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, g, session
 from werkzeug.utils import secure_filename
 from config import Config
 from services.email_parser import parse_email_input
@@ -15,7 +12,7 @@ from services.llm_analyzer import analyze_with_llm
 from services.yara_scanner import scan_file
 from services.audit_logger import audit_event
 from services.report_generator import generate_report
-from services.auth import SESSION_COOKIE_NAME, auth_configured, create_session_token, decode_session_token, exchange_code, get_user_info
+from services.auth import authenticate, auth_configured
 
 BASE = Path(__file__).parent
 
@@ -73,18 +70,6 @@ def error(msg, code=400):
     flash(msg, "error")
     return redirect(request.referrer or url_for("dashboard"))
 
-def callback_uri(req):
-    scheme = req.headers.get("X-Forwarded-Proto", req.scheme).split(",")[0].strip()
-    host = req.headers.get("X-Forwarded-Host", req.host).split(",")[0].strip()
-    return f"{scheme}://{host}{url_for('auth_callback')}"
-
-def decode_oauth_state(value):
-    try:
-        padded = value + "=" * (-len(value) % 4)
-        return json.loads(base64.urlsafe_b64decode(padded.encode()).decode())
-    except (ValueError, TypeError, json.JSONDecodeError):
-        return None
-
 def create_app(test_config=None):
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -105,66 +90,34 @@ def create_app(test_config=None):
 
     @app.before_request
     def require_authentication():
-        g.current_user = None
+        g.current_user = session.get("user")
         if request.endpoint == "static" or request.path in {"/health", "/manus-routes.json"} or request.path.startswith("/auth/"):
             return None
-        claims = decode_session_token(request.cookies.get(SESSION_COOKIE_NAME), app.config)
-        if claims:
-            g.current_user = claims
+        if g.current_user:
             return None
         if request.path.startswith("/api/"):
             return jsonify({"error": "Authentication required"}), 401
         return redirect(url_for("login_page"))
 
-    @app.get("/auth/login")
+    @app.route("/auth/login", methods=["GET", "POST"])
     def login_page():
         if g.current_user:
             return redirect(url_for("dashboard"))
+        if request.method == "POST":
+            username = request.form.get("username", "")[:128]
+            password = request.form.get("password", "")
+            if auth_configured(app.config) and authenticate(username, password, app.config):
+                session.clear()
+                session.permanent = True
+                session["user"] = {"username": username}
+                return redirect(url_for("dashboard"))
+            flash("Invalid username or password.", "error")
         return render_template("login.html", auth_configured=auth_configured(app.config))
-
-    @app.get("/auth/start")
-    def auth_login():
-        if not auth_configured(app.config):
-            return render_template("login.html", auth_configured=False), 503
-        nonce = secrets.token_urlsafe(24)
-        redirect_uri = callback_uri(request)
-        state = base64.urlsafe_b64encode(json.dumps({"redirectUri": redirect_uri, "nonce": nonce}).encode()).decode().rstrip("=")
-        portal = app.config["MANUS_OAUTH_PORTAL_URL"].rstrip("/") + "/app-auth"
-        query = urlencode({"appId": app.config["MANUS_PROJECT_ID"], "redirectUri": redirect_uri, "state": state, "responseType": "code"})
-        response = make_response(redirect(portal + "?" + query))
-        response.set_cookie("phishops_oauth_nonce", nonce, max_age=600, httponly=True, secure=app.config["SESSION_COOKIE_SECURE"], samesite="None")
-        return response
-
-    @app.get("/auth/callback")
-    def auth_callback():
-        if request.args.get("error"):
-            flash("Manus sign-in was cancelled or denied.", "error")
-            return redirect(url_for("login_page"))
-        state = decode_oauth_state(request.args.get("state", ""))
-        nonce = request.cookies.get("phishops_oauth_nonce", "")
-        if not state or not nonce or not hmac.compare_digest(str(state.get("nonce", "")), nonce) or state.get("redirectUri") != callback_uri(request):
-            return render_template("error.html", message="The sign-in state was invalid or expired."), 400
-        code = request.args.get("code", "")
-        if not code:
-            return render_template("error.html", message="Manus did not return an authorization code."), 400
-        try:
-            token = exchange_code(code, state["redirectUri"], app.config)
-            user = get_user_info(token["accessToken"], app.config)
-            session_token = create_session_token(user, app.config)
-            response = make_response(redirect(url_for("dashboard")))
-            response.set_cookie(SESSION_COOKIE_NAME, session_token, max_age=8 * 60 * 60, httponly=True, secure=app.config["SESSION_COOKIE_SECURE"], samesite="None")
-            response.delete_cookie("phishops_oauth_nonce")
-            return response
-        except Exception:
-            app.logger.exception("Manus OAuth callback failed")
-            return render_template("error.html", message="Sign-in could not be completed safely."), 502
 
     @app.get("/auth/logout")
     def auth_logout():
-        response = make_response(redirect(url_for("login_page")))
-        response.delete_cookie(SESSION_COOKIE_NAME)
-        response.delete_cookie("phishops_oauth_nonce")
-        return response
+        session.clear()
+        return redirect(url_for("login_page"))
 
     @app.get("/")
     def dashboard():

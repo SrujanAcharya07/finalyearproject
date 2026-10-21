@@ -2,8 +2,6 @@ import sys
 from pathlib import Path
 
 import pytest
-import jwt
-from datetime import datetime, timedelta, timezone
 from pydantic import ValidationError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -18,13 +16,12 @@ from services.rule_engine import run_rules
 from services.url_defanger import defang_url
 
 EMAIL = b"From: CFO <cfo@example.com>\nTo: user@example.net\nSubject: Urgent verification\n\nClick https://evil.example/login immediately to verify your password."
-TEST_AUTH = {"MANUS_PROJECT_ID": "test-project", "MANUS_JWT_SECRET": "test-secret-012345678901234567890123", "MANUS_OAUTH_PORTAL_URL": "https://auth.example", "MANUS_OAUTH_API_URL": "https://api.example", "SESSION_COOKIE_SECURE": False}
+TEST_AUTH = {"ADMIN_USERNAME": "SRUJAN", "ADMIN_PASSWORD": "test-password", "SESSION_COOKIE_SECURE": False}
 
 
 def make_authenticated_client(app):
-    token = jwt.encode({"openId": "test-user", "name": "Test Analyst", "appId": "test-project", "exp": datetime.now(timezone.utc) + timedelta(hours=1)}, "test-secret-012345678901234567890123", algorithm="HS256")
     client = app.test_client()
-    client.set_cookie("webdev_app_session", token)
+    client.post("/auth/login", data={"username": "SRUJAN", "password": "test-password"})
     return client
 
 

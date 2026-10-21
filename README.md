@@ -48,9 +48,7 @@ The application first uses `langchain-ollama` with a Pydantic structured-output 
 For the public managed deployment, `127.0.0.1` refers to the published container, not this sandbox or a personal computer. A host-local Ollama service is therefore available to local runs only; a public deployment needs an explicitly configured reachable Ollama endpoint and appropriate network controls. Never expose Ollama or model credentials publicly.
 
 ## Login and access control
-The dashboard, investigation pages, reports, settings, and APIs require Manus OAuth. The public login page is `/auth/login`; selecting **Continue with Manus** starts the platform authorization flow. The callback validates a single-use state nonce, exchanges the code server-side, resolves the Manus identity, and creates an eight-hour HS256 session in the platform-compatible `webdev_app_session` cookie. The project validates the cookie signature, expiry, and `appId` on every protected request. Health and route-manifest endpoints remain public for platform readiness and routing.
-
-Managed Preview and published deployments provide the `MANUS_PROJECT_ID`, `MANUS_OAUTH_PORTAL_URL`, `MANUS_OAUTH_API_URL`, and `MANUS_JWT_SECRET` runtime values. For plain-HTTP local work, set `SESSION_COOKIE_SECURE=false`; keep it enabled for HTTPS Preview and production. No passwords or custom credential database are stored by this application.
+The dashboard, investigation pages, reports, settings, and APIs require the simple login page at `/auth/login`. Configure `ADMIN_USERNAME` and either the protected `ADMIN_PASSWORD` or a Werkzeug `ADMIN_PASSWORD_HASH` in the deployment secret store. Successful login creates a secure Flask session; logout clears it. Health and route-manifest endpoints remain public for platform readiness and routing. Never commit the password or a local `.env` file.
 
 ## Tests
 `pytest -q` runs without Ollama, YARA, Cuckoo, Cortex, or TheHive. Tests use safe fallback behavior and schema validation rather than a live model.
