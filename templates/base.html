@@ -5,22 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>PhishOps SOAR</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
 </head>
 <body>
   <nav class="site-nav" aria-label="Primary navigation">
     <a class="brand" href="{{ url_for('dashboard') }}">PHISHOPS / SOAR</a>
-    <div class="desktop-nav" aria-label="Desktop navigation">
-      <a href="{{ url_for('dashboard') }}">Dashboard</a>
-      <a href="{{ url_for('submit_page') }}">New investigation</a>
-    </div>
-    <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open menu" aria-controls="mobile-menu" aria-expanded="false">
-      <span aria-hidden="true">⋮</span>
-    </button>
-    <div class="mobile-menu" id="mobile-menu" hidden>
-      <a href="{{ url_for('dashboard') }}">Dashboard</a>
-      <a href="{{ url_for('submit_page') }}">New investigation</a>
-      <a href="{{ url_for('settings') }}">Settings</a>
-    </div>
+    {% if current_user %}
+      <div class="desktop-nav" aria-label="Desktop navigation">
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('submit_page') }}">New investigation</a>
+        <a href="{{ url_for('auth_logout') }}">Sign out</a>
+      </div>
+      <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open menu" aria-controls="mobile-menu" aria-expanded="false">
+        <span aria-hidden="true">⋮</span>
+      </button>
+      <div class="mobile-menu" id="mobile-menu" hidden>
+        <span class="mobile-user">{{ current_user.name or current_user.email or 'Authenticated analyst' }}</span>
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('submit_page') }}">New investigation</a>
+        <a href="{{ url_for('settings') }}">Settings</a>
+        <a href="{{ url_for('auth_logout') }}">Sign out</a>
+      </div>
+    {% endif %}
   </nav>
   <main>
     {% with messages=get_flashed_messages(with_categories=true) %}

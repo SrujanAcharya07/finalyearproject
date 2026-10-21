@@ -47,36 +47,13 @@ The application first uses `langchain-ollama` with a Pydantic structured-output 
 
 For the public managed deployment, `127.0.0.1` refers to the published container, not this sandbox or a personal computer. A host-local Ollama service is therefore available to local runs only; a public deployment needs an explicitly configured reachable Ollama endpoint and appropriate network controls. Never expose Ollama or model credentials publicly.
 
+## Login and access control
+The dashboard, investigation pages, reports, settings, and APIs require Manus OAuth. The public login page is `/auth/login`; selecting **Continue with Manus** starts the platform authorization flow. The callback validates a single-use state nonce, exchanges the code server-side, resolves the Manus identity, and creates an eight-hour HS256 session in the platform-compatible `webdev_app_session` cookie. The project validates the cookie signature, expiry, and `appId` on every protected request. Health and route-manifest endpoints remain public for platform readiness and routing.
+
+Managed Preview and published deployments provide the `MANUS_PROJECT_ID`, `MANUS_OAUTH_PORTAL_URL`, `MANUS_OAUTH_API_URL`, and `MANUS_JWT_SECRET` runtime values. For plain-HTTP local work, set `SESSION_COOKIE_SECURE=false`; keep it enabled for HTTPS Preview and production. No passwords or custom credential database are stored by this application.
+
 ## Tests
 `pytest -q` runs without Ollama, YARA, Cuckoo, Cortex, or TheHive. Tests use safe fallback behavior and schema validation rather than a live model.
-
-## Run with Docker
-
-Build and start the application with persistent SQLite and upload volumes:
-
-```bash
-cp .env.example .env
-docker compose up --build -d
-curl http://127.0.0.1:3000/health
-```
-
-Open http://127.0.0.1:3000. Stop it with `docker compose down`; the named volumes preserve investigations and uploads. Set `SECRET_KEY` in `.env` before any shared deployment. Ollama and the optional Cuckoo/Cortex/TheHive integrations remain disabled unless their environment variables are configured.
-
-The image listens on port `3000`, runs as a non-root user, and includes a Docker health check. To use another host port, set `APP_PORT`, for example `APP_PORT=8080 docker compose up -d`.
-
-## Jenkins pipeline
-
-The root `Jenkinsfile` is a declarative pipeline intended for a Jenkins agent with **Python 3**, **Docker**, **curl**, and the Jenkins **JUnit** plugin. Create a Pipeline or Multibranch Pipeline job pointing to this repository and configure a GitHub webhook or SCM polling as desired.
-
-Every build:
-
-1. checks out the repository;
-2. creates a virtual environment and runs `pytest` with JUnit results;
-3. builds the Docker image tagged with the Jenkins build number and `latest`;
-4. starts the image and waits for `/health` to pass;
-5. removes the smoke-test container and prunes dangling images.
-
-The `PUSH_IMAGE` parameter is off by default. To publish, set `DOCKER_IMAGE` to a registry image such as `docker.io/<your-user>/phishops-playbook`, create a Jenkins username/password credential (default ID: `docker-registry`), and enable `PUSH_IMAGE`. The pipeline pushes both the build-number tag and `latest` only after tests and the container smoke test pass.
 
 ## Risk scoring guardrails
 Risk scores are evidence-based and each independent rule finding contributes separately. A single weak or moderate indicator remains Low; Medium, High, and Critical levels require corroborating evidence. The test suite includes regression coverage to prevent multiple suspicious phrases from collapsing into a fixed 15-point score. Existing saved investigations are re-scored with the current rules when the application starts.

@@ -2,6 +2,8 @@ import sys
 from pathlib import Path
 
 import pytest
+import jwt
+from datetime import datetime, timedelta, timezone
 from pydantic import ValidationError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -16,6 +18,14 @@ from services.rule_engine import run_rules
 from services.url_defanger import defang_url
 
 EMAIL = b"From: CFO <cfo@example.com>\nTo: user@example.net\nSubject: Urgent verification\n\nClick https://evil.example/login immediately to verify your password."
+TEST_AUTH = {"MANUS_PROJECT_ID": "test-project", "MANUS_JWT_SECRET": "test-secret-012345678901234567890123", "MANUS_OAUTH_PORTAL_URL": "https://auth.example", "MANUS_OAUTH_API_URL": "https://api.example", "SESSION_COOKIE_SECURE": False}
+
+
+def make_authenticated_client(app):
+    token = jwt.encode({"openId": "test-user", "name": "Test Analyst", "appId": "test-project", "exp": datetime.now(timezone.utc) + timedelta(hours=1)}, "test-secret-012345678901234567890123", algorithm="HS256")
+    client = app.test_client()
+    client.set_cookie("webdev_app_session", token)
+    return client
 
 
 def test_parser_and_indicators():
@@ -56,10 +66,20 @@ def test_llm_unavailable_is_safe(monkeypatch):
     assert result["advisory"] is True
 
 
+def test_login_gate_keeps_public_endpoints_available(tmp_path):
+    app = create_app({"TESTING": True, "DATABASE_PATH": str(tmp_path / "t.db"), "UPLOAD_FOLDER": str(tmp_path / "u"), **TEST_AUTH})
+    client = app.test_client()
+    assert client.get("/").status_code == 302
+    assert client.get("/").headers["Location"].endswith("/auth/login")
+    assert client.get("/auth/login").status_code == 200
+    assert client.get("/health").status_code == 200
+    assert client.get("/api/investigations").status_code == 401
+
+
 def test_route_persistence(tmp_path, monkeypatch):
     monkeypatch.setattr(Config, "OLLAMA_MODEL", "")
-    app = create_app({"TESTING": True, "DATABASE_PATH": str(tmp_path / "t.db"), "UPLOAD_FOLDER": str(tmp_path / "u")})
-    client = app.test_client()
+    app = create_app({"TESTING": True, "DATABASE_PATH": str(tmp_path / "t.db"), "UPLOAD_FOLDER": str(tmp_path / "u"), **TEST_AUTH})
+    client = make_authenticated_client(app)
     response = client.post("/api/investigations", json={"title": "test", "content": EMAIL.decode()})
     assert response.status_code == 201
     iid = response.get_json()["id"]
@@ -68,5 +88,5 @@ def test_route_persistence(tmp_path, monkeypatch):
 
 
 def test_invalid_input(tmp_path):
-    app = create_app({"TESTING": True, "DATABASE_PATH": str(tmp_path / "t.db"), "UPLOAD_FOLDER": str(tmp_path / "u")})
-    assert app.test_client().post("/api/investigations", json={}).status_code == 400
+    app = create_app({"TESTING": True, "DATABASE_PATH": str(tmp_path / "t.db"), "UPLOAD_FOLDER": str(tmp_path / "u"), **TEST_AUTH})
+    assert make_authenticated_client(app).post("/api/investigations", json={}).status_code == 400

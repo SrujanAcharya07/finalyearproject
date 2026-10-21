@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="login-shell">
+  <div class="login-card">
+    <span class="eyebrow">AUTHORIZED SOC OPERATIONS</span>
+    <h1>Sign in to PhishOps</h1>
+    <p class="muted">Use your Manus account to access the incident response cockpit and investigation records.</p>
+    {% if not auth_configured %}
+      <div class="flash error">Authentication is not configured in this runtime. The deployment must provide the Manus OAuth settings.</div>
+    {% else %}
+      <a class="button login-button" href="{{ url_for('auth_login') }}">Continue with Manus</a>
+    {% endif %}
+    <p class="login-note">Access is limited to authorized defensive analysis.</p>
+  </div>
+</section>
+{% endblock %}
